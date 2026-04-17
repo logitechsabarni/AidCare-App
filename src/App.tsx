@@ -40,34 +40,58 @@ function cn(...inputs: ClassValue[]) {
 interface Volunteer {
   name: string;
   role: string;
+  skills: string[];
   organization: string;
+  strength: string;
   assigned_task: string;
 }
 
+interface BackendResponse {
+  location: string;
+  people_count: number;
+  severity: "Low" | "Medium" | "High" | "Critical";
+  urgency: "Low" | "Medium" | "High" | "Critical";
+  priority_score: number;
+  need_type: string;
+  volunteer_count: number;
+  volunteer_plan: Volunteer[];
+  resource_distribution: {
+    medical_team: number;
+    food_supply_team: number;
+    rescue_team: number;
+    logistics_team: number;
+  };
+  confidence: number;
+}
+
+interface DashboardReport {
+  situation_summary: string;
+  severity_visual: {
+    label: string;
+    score: number;
+  };
+  urgency_meter: {
+    level: string;
+    value: number;
+  };
+  affected_estimate: string;
+  key_needs: string[];
+  volunteer_table: {
+    name: string;
+    role: string;
+    ngo: string;
+    task: string;
+  }[];
+  resource_cards: {
+    type: "MEDICAL" | "FOOD" | "RESCUE" | "LOGISTICS";
+    allocation: number;
+  }[];
+  insight_logs: string[];
+}
+
 interface PipelineResult {
-  id: string;
-  original_text: string;
-  extracted: {
-    location: string;
-    people_count: number;
-    urgency: string;
-  };
-  classification: {
-    category: string;
-  };
-  priority: {
-    severity: string;
-    urgency: string;
-    priority_score: number;
-  };
-  matching: {
-    matched_ngo: string;
-    required_skills: string[];
-  };
-  plan: {
-    volunteer_count: number;
-    volunteer_plan: Volunteer[];
-  };
+  backend_response: BackendResponse;
+  dashboard_report: DashboardReport;
   timestamp: string;
 }
 
@@ -101,108 +125,165 @@ export default function App() {
     setResult(null);
 
     try {
-      // Step 1: InputAgent
-      const inputResult = await runAgent(
-        "InputAgent",
-        `Clean and extract basic info from this disaster text: "${inputText}". 
-         Return JSON with: location (string), people_count (number, estimate if needed), urgency (Low/Medium/High/Critical).`,
+      // Agent 1: Situation Intel Agent
+      const situation = await runAgent(
+        "SituationIntelAgent",
+        `Extract situation data from: "${inputText}". 
+         Return JSON: { location: string, people_estimate: number, context: string }.`,
+        {
+          type: Type.OBJECT,
+          properties: {
+            location: { type: Type.STRING },
+            people_estimate: { type: Type.INTEGER },
+            context: { type: Type.STRING }
+          },
+          required: ["location", "people_estimate", "context"]
+        }
+      );
+
+      // Agent 2: Needs Analysis Agent
+      const needs = await runAgent(
+        "NeedsAnalysisAgent",
+        `Identify primary needs for: "${inputText}". 
+         Return JSON: { primary_need: string, key_indicators: string[] }.`,
+        {
+          type: Type.OBJECT,
+          properties: {
+            primary_need: { type: Type.STRING },
+            key_indicators: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ["primary_need", "key_indicators"]
+        }
+      );
+
+      // Agent 3: Priority Scoring Agent
+      const priority = await runAgent(
+        "PriorityScoringAgent",
+        `Calculate priority for: "${inputText}". 
+         Return JSON: { severity: "Low" | "Medium" | "High" | "Critical", urgency: "Low" | "Medium" | "High" | "Critical", score: number(0-100) }.`,
+        {
+          type: Type.OBJECT,
+          properties: {
+            severity: { type: Type.STRING, enum: ["Low", "Medium", "High", "Critical"] },
+            urgency: { type: Type.STRING, enum: ["Low", "Medium", "High", "Critical"] },
+            score: { type: Type.INTEGER }
+          },
+          required: ["severity", "urgency", "score"]
+        }
+      );
+
+      // Agent 4: NGO Strategic Matching Agent
+      const matching = await runAgent(
+        "MatchingAgent",
+        `Match NGOs for: "${inputText}". 
+         NGO Options: Red Cross, NDRF, Goonj, CARE India, Doctors Without Borders, UNICEF.
+         Role consistency: Medical (paramedic, doctor), Rescue (Search/Rescue NDRF), Logistics (coordinator).
+         Use realistic Indian names only (Arjun Mehta, Priya Nair, etc.).
+         Return JSON matching Layer 1 volunteer_plan schema.`,
+        {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              role: { type: Type.STRING },
+              skills: { type: Type.ARRAY, items: { type: Type.STRING } },
+              organization: { type: Type.STRING },
+              strength: { type: Type.STRING },
+              assigned_task: { type: Type.STRING }
+            },
+            required: ["name", "role", "skills", "organization", "strength", "assigned_task"]
+          }
+        }
+      );
+
+      // Agent 5: System Controller Agent (Generates Backend Layer)
+      const backendResponse = await runAgent(
+        "ControllerAgent",
+        `Compile Machine JSON for:
+         Location: ${situation.location}
+         Severity: ${priority.severity}
+         Volunteers: ${JSON.stringify(matching)}
+         Distribution must match severity logic. Critical = High allocations.
+         Return exactly Layer 1 Machine JSON.`,
         {
           type: Type.OBJECT,
           properties: {
             location: { type: Type.STRING },
             people_count: { type: Type.INTEGER },
-            urgency: { type: Type.STRING }
-          },
-          required: ["location", "people_count", "urgency"]
-        }
-      );
-
-      // Step 2: ClassificationAgent
-      const classificationResult = await runAgent(
-        "ClassificationAgent",
-        `Based on this text: "${inputText}", classify the primary needs. 
-         Return JSON with key 'category' which must be one of: Food, Healthcare, Shelter, Education, Sanitation, Others.`,
-        {
-          type: Type.OBJECT,
-          properties: {
-            category: { type: Type.STRING }
-          },
-          required: ["category"]
-        }
-      );
-
-      // Step 3: PriorityAgent
-      const priorityResult = await runAgent(
-        "PriorityAgent",
-        `Assess priority for: "${inputText}". 
-         Return JSON with: severity (Low/Medium/High/Critical), urgency (Low/Medium/High/Critical), priority_score (0-100).`,
-        {
-          type: Type.OBJECT,
-          properties: {
             severity: { type: Type.STRING },
             urgency: { type: Type.STRING },
-            priority_score: { type: Type.INTEGER }
-          },
-          required: ["severity", "urgency", "priority_score"]
-        }
-      );
-
-      // Step 4: MatchingAgent
-      const matchingResult = await runAgent(
-        "MatchingAgent",
-        `Match the best NGO for: "${inputText}" with category "${classificationResult.category}". 
-         NGO Options: Red Cross, UNICEF, NDRF, Goonj, CARE India. 
-         Return JSON with: matched_ngo (string), required_skills (array of strings).`,
-        {
-          type: Type.OBJECT,
-          properties: {
-            matched_ngo: { type: Type.STRING },
-            required_skills: { type: Type.ARRAY, items: { type: Type.STRING } }
-          },
-          required: ["matched_ngo", "required_skills"]
-        }
-      );
-
-      // Step 5: ControllerAgent
-      const finalResult = await runAgent(
-        "ControllerAgent",
-        `Finalize response plan for situation at "${inputResult.location}" with severity "${priorityResult.severity}". 
-         Create a volunteer plan. 
-         Rule: Low -> 2-3, Medium -> 4-6, High -> 7-10, Critical -> 11-15.
-         Return JSON with: 
-         - volunteer_count (number)
-         - volunteer_plan (array of objects with: name, role, organization, assigned_task)
-         Ensure volunteer_count matches array length.`,
-        {
-          type: Type.OBJECT,
-          properties: {
+            priority_score: { type: Type.INTEGER },
+            need_type: { type: Type.STRING },
             volunteer_count: { type: Type.INTEGER },
-            volunteer_plan: {
+            volunteer_plan: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+            resource_distribution: {
+              type: Type.OBJECT,
+              properties: {
+                medical_team: { type: Type.INTEGER },
+                food_supply_team: { type: Type.INTEGER },
+                rescue_team: { type: Type.INTEGER },
+                logistics_team: { type: Type.INTEGER }
+              }
+            },
+            confidence: { type: Type.NUMBER }
+          },
+          required: ["location", "people_count", "severity", "urgency", "priority_score", "need_type", "volunteer_count", "volunteer_plan", "resource_distribution", "confidence"]
+        }
+      );
+
+      // Agent 6: Dashboard Rendering Agent (Generates UI Layer)
+      const dashboardReport = await runAgent(
+        "DashboardAgent",
+        `Generate UI Dashboard Report based on previous intelligence.
+         Situation: ${situation.context}
+         Backend Response: ${JSON.stringify(backendResponse)}
+         Return exactly Layer 2 UI structure.`,
+        {
+          type: Type.OBJECT,
+          properties: {
+            situation_summary: { type: Type.STRING },
+            severity_visual: {
+              type: Type.OBJECT,
+              properties: { label: { type: Type.STRING }, score: { type: Type.INTEGER } }
+            },
+            urgency_meter: {
+              type: Type.OBJECT,
+              properties: { level: { type: Type.STRING }, value: { type: Type.INTEGER } }
+            },
+            affected_estimate: { type: Type.STRING },
+            key_needs: { type: Type.ARRAY, items: { type: Type.STRING } },
+            volunteer_table: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
                   name: { type: Type.STRING },
                   role: { type: Type.STRING },
-                  organization: { type: Type.STRING },
-                  assigned_task: { type: Type.STRING }
-                },
-                required: ["name", "role", "organization", "assigned_task"]
+                  ngo: { type: Type.STRING },
+                  task: { type: Type.STRING }
+                }
               }
-            }
+            },
+            resource_cards: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING },
+                  allocation: { type: Type.INTEGER }
+                }
+              }
+            },
+            insight_logs: { type: Type.ARRAY, items: { type: Type.STRING } }
           },
-          required: ["volunteer_count", "volunteer_plan"]
+          required: ["situation_summary", "severity_visual", "urgency_meter", "affected_estimate", "key_needs", "volunteer_table", "resource_cards", "insight_logs"]
         }
       );
 
       setResult({
-        id: Math.random().toString(36).substring(7),
-        original_text: inputText,
-        extracted: inputResult,
-        classification: classificationResult,
-        priority: priorityResult,
-        matching: matchingResult,
-        plan: finalResult,
+        backend_response: backendResponse,
+        dashboard_report: dashboardReport,
         timestamp: new Date().toISOString()
       });
     } catch (err) {
@@ -214,7 +295,7 @@ export default function App() {
   };
 
   const getUrgencyBadge = (val: string) => {
-    switch (val.toLowerCase()) {
+    switch (val?.toLowerCase()) {
       case "critical": return "bg-[rgba(255,61,61,0.2)] text-[#FF3D3D]";
       case "high": return "bg-[rgba(245,158,11,0.2)] text-[#F59E0B]";
       case "medium": return "bg-sky-500/20 text-sky-400";
@@ -222,12 +303,11 @@ export default function App() {
     }
   };
 
-  const chartData = result ? [
-    { name: "MEDS", value: result.classification.category === "Healthcare" ? 90 : 30, opacity: 0.9 },
-    { name: "WATER", value: result.classification.category === "Food" ? 80 : 60, opacity: 0.7 },
-    { name: "FOOD", value: 40, opacity: 0.5 },
-    { name: "SHELTER", value: result.classification.category === "Shelter" ? 70 : 30, opacity: 0.3 },
-  ] : [];
+  const chartData = result ? result.dashboard_report.resource_cards.map(card => ({
+    name: card.type,
+    value: card.allocation,
+    opacity: card.type === "RESCUE" ? 0.9 : card.type === "MEDICAL" ? 0.7 : 0.5
+  })) : [];
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#0A0A0B] text-[#E4E4E7]">
@@ -279,11 +359,12 @@ export default function App() {
               Agent Pipeline Status
             </span>
             {[
-              { name: "InputAgent.clean()", status: result ? "done" : loading ? "busy" : "wait" },
-              { name: "ClassificationAgent.tag()", status: result ? "done" : loading ? "busy" : "wait" },
-              { name: "PriorityAgent.score()", status: result ? "done" : loading ? "busy" : "wait" },
-              { name: "MatchingAgent.assign()", status: result ? "done" : loading ? "busy" : "wait" },
-              { name: "ControllerAgent.validate()", status: result ? "done" : loading ? "busy" : "wait" },
+              { name: "SituationIntelAgent.scan()", status: result ? "done" : loading ? "busy" : "wait" },
+              { name: "NeedsAnalysisAgent.tag()", status: result ? "done" : loading ? "busy" : "wait" },
+              { name: "PriorityScoringAgent.calc()", status: result ? "done" : loading ? "busy" : "wait" },
+              { name: "MatchingAgent.lookup()", status: result ? "done" : loading ? "busy" : "wait" },
+              { name: "ControllerAgent.compile()", status: result ? "done" : loading ? "busy" : "wait" },
+              { name: "DashboardAgent.render()", status: result ? "done" : loading ? "busy" : "wait" },
             ].map((agent, i) => (
               <div 
                 key={i} 
@@ -333,74 +414,79 @@ export default function App() {
                 {/* Situation Analysis */}
                 <div className="col-span-2 bg-[#121214] border border-[#27272A] rounded-xl p-4">
                   <span className="mono text-[10px] uppercase tracking-widest text-[#71717A] mb-3 block">
-                    Situation Analysis
+                    Intelligence Summary
                   </span>
                   <div className="border-l-2 border-[#FF3D3D] pl-4 text-[14px] leading-relaxed text-[#E4E4E7]">
-                    Extraction reveals a <span className="font-bold text-white uppercase">{result.priority.severity}</span> magnitude event in <span className="font-bold text-white">{result.extracted.location}</span>. 
-                    {result.extracted.people_count > 0 && ` Approximately ${result.extracted.people_count} persons affected.`} Primary needs identified as <span className="font-bold text-[#FF3D3D]">{result.classification.category}</span>.
+                    {result.dashboard_report.situation_summary}
                   </div>
                 </div>
 
                 {/* Urgency Level */}
                 <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 flex flex-col">
                   <span className="mono text-[10px] uppercase tracking-widest text-[#71717A] mb-3 block">
-                    Urgency Level
+                    Priority Score
                   </span>
                   <div className="mt-1">
-                    <span className={cn("text-[10px] font-bold uppercase py-1 px-3 rounded-full", getUrgencyBadge(result.priority.urgency))}>
-                      {result.priority.urgency}
+                    <span className={cn("text-[10px] font-bold uppercase py-1 px-3 rounded-full", getUrgencyBadge(result.dashboard_report.urgency_meter.level))}>
+                      {result.dashboard_report.urgency_meter.level}
                     </span>
                     <div className="flex items-baseline gap-2 mt-4 ml-1">
-                      <span className="mono text-3xl font-bold">{result.priority.priority_score}</span>
+                      <span className="mono text-3xl font-bold">{result.dashboard_report.severity_visual.score}</span>
                       <span className="text-[12px] text-[#71717A]">/ 100</span>
                     </div>
                     <div className="h-1 bg-[#27272A] rounded-full mt-3 overflow-hidden">
                       <motion.div 
                         initial={{ width: 0 }}
-                        animate={{ width: `${result.priority.priority_score}%` }}
+                        animate={{ width: `${result.dashboard_report.severity_visual.score}%` }}
                         className="h-full bg-[#FF3D3D]"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Casualties / Population */}
+                {/* Affected Population */}
                 <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4">
                   <span className="mono text-[10px] uppercase tracking-widest text-[#71717A] mb-3 block">
-                    Est. Affected Population
+                    Affected Context
                   </span>
-                  <div className="mono text-3xl font-bold mt-2 ml-1">
-                    ~{result.extracted.people_count}
+                  <div className="mono text-xl font-bold mt-2 ml-1 text-[#FF3D3D]">
+                    {result.dashboard_report.affected_estimate}
                   </div>
-                  <span className="text-[11px] text-[#71717A] block mt-1">At-risk individuals identified</span>
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {result.dashboard_report.key_needs.map((need, idx) => (
+                      <span key={idx} className="text-[9px] bg-sky-500/10 text-sky-400 px-1.5 py-0.5 rounded border border-sky-500/20 uppercase font-bold">
+                        {need}
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Volunteer Table */}
                 <div className="col-span-4 bg-[#121214] border border-[#27272A] rounded-xl p-4 overflow-hidden">
                   <span className="mono text-[10px] uppercase tracking-widest text-[#71717A] mb-4 block">
-                    Volunteer Assignment Plan (MatchingAgent Alpha)
+                    Strategic Volunteer Deployment Plan
                   </span>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse text-[12px]">
                       <thead>
                         <tr className="border-b border-[#27272A]">
-                          <th className="text-left py-2 font-normal text-[#71717A]">VOLUNTEER NAME</th>
-                          <th className="text-left py-2 font-normal text-[#71717A]">ROLE / SPECIALIZATION</th>
-                          <th className="text-left py-2 font-normal text-[#71717A]">NGO AFFILIATION</th>
-                          <th className="text-left py-2 font-normal text-[#71717A]">ASSIGNED TASK</th>
+                          <th className="text-left py-2 font-normal text-[#71717A]">NAME</th>
+                          <th className="text-left py-2 font-normal text-[#71717A]">DESIGNATION</th>
+                          <th className="text-left py-2 font-normal text-[#71717A]">ORGANIZATION</th>
+                          <th className="text-left py-2 font-normal text-[#71717A]">MISSION ASSIGNMENT</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#27272A]/50">
-                        {result.plan.volunteer_plan.map((v, i) => (
+                        {result.dashboard_report.volunteer_table.map((v, i) => (
                           <tr key={i} className="hover:bg-white/[0.02] transition-colors">
                             <td className="py-3 font-semibold">{v.name}</td>
                             <td className="py-3 text-[#71717A]">{v.role}</td>
                             <td className="py-3">
-                              <span className="bg-[#27272A] text-[10px] px-2 py-0.5 rounded uppercase tracking-tighter">
-                                {v.organization}
+                              <span className="bg-[#27272A] text-[10px] px-2 py-0.5 rounded uppercase tracking-tighter text-white">
+                                {v.ngo}
                               </span>
                             </td>
-                            <td className="py-3 text-[#E4E4E7]">{v.assigned_task}</td>
+                            <td className="py-3 text-[#E4E4E7] mono text-[11px]">{v.task}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -411,7 +497,7 @@ export default function App() {
                 {/* Resource Distribution */}
                 <div className="col-span-2 bg-[#121214] border border-[#27272A] rounded-xl p-4">
                   <span className="mono text-[10px] uppercase tracking-widest text-[#71717A] mb-5 block">
-                    Resource Distribution Logic
+                    Tactical Resource Allocation (%)
                   </span>
                   <div className="flex items-end gap-3 h-28 px-2">
                     {chartData.map((d, i) => (
@@ -419,7 +505,7 @@ export default function App() {
                         <motion.div 
                           initial={{ height: 0 }}
                           animate={{ height: `${d.value}%` }}
-                          className="w-full bg-[#FF3D3D] rounded-t-sm relative flex items-center justify-center"
+                          className="w-full bg-[#FF3D3D] rounded-t-sm relative flex items-center justify-center min-h-[4px]"
                           style={{ opacity: d.opacity }}
                         >
                           <span className="mono vertical-rl text-[9px] text-[#E4E4E7] font-bold py-2 pointer-events-none uppercase">
@@ -431,18 +517,32 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Agent Logs */}
+                {/* Intelligence Logs */}
                 <div className="col-span-2 bg-[#121214] border border-[#27272A] rounded-xl p-4">
                   <span className="mono text-[10px] uppercase tracking-widest text-[#71717A] mb-3 block">
-                    Intelligence Pipeline Logs
+                    Multi-Agent Intelligence Feed
                   </span>
-                  <div className="mono text-[11px] text-[#71717A] space-y-1">
-                    <div>{`> SCAN_NGO_DB [SUCCESS]`}</div>
-                    <div>{`> FILTERING: sector=${result.extracted.location}`}</div>
-                    <div>{`> ANALYSIS: category=${result.classification.category}`}</div>
-                    <div>{`> MATCH_FOUND: ${result.matching.matched_ngo}`}</div>
-                    <div>{`> ASSIGN_QUEUE_ID: ${result.id.toUpperCase()}`}</div>
+                  <div className="mono text-[11px] text-[#71717A] space-y-1 overflow-y-auto max-h-28 scrollbar-hide">
+                    {result.dashboard_report.insight_logs.map((log, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <span className="text-[#22C55E]">✓</span>
+                        <span>{log}</span>
+                      </div>
+                    ))}
+                    <div className="animate-pulse flex gap-2">
+                      <span className="text-[#FF3D3D] font-bold">»</span>
+                      <span className="italic text-[9px]">AWAITING NEXT CYCLE...</span>
+                    </div>
                   </div>
+                </div>
+
+                {/* Backend Compatibility Footer (within report) */}
+                <div className="col-span-4 bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                     <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                     <span className="mono text-[10px] text-emerald-400 uppercase tracking-widest">Backend JSON Layer Verified</span>
+                   </div>
+                   <div className="mono text-[9px] text-[#71717A]">CONFIDENCE_INDEX: {(result.backend_response.confidence * 100).toFixed(1)}%</div>
                 </div>
               </motion.div>
             )}
