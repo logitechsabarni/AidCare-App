@@ -28,9 +28,27 @@ body {
 
 .cyber-grid {
   background-image: 
-    linear-gradient(to right, rgba(255, 61, 61, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 61, 61, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
+    linear-gradient(to right, rgba(255, 61, 61, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 61, 61, 0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.radar-sweep {
+  width: 150%;
+  height: 150%;
+  background: conic-gradient(from 180deg at 50% 50%, rgba(255, 61, 61, 0.1) 0deg, transparent 90deg);
+  border-radius: 50%;
+  position: absolute;
+  top: -25%;
+  left: -25%;
+  animation: rotate 10s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .scanline {

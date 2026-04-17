@@ -1,6 +1,6 @@
 {
-  "name": "AidFlow: Agentic Volunteer Intelligence System",
-  "description": "Multi-agent AI pipeline for disaster response coordination and volunteer intelligence.",
-  "requestFramePermissions": [],
+  "name": "AidFlow AI Disaster Command Center",
+  "description": "NASA-style AI emergency response dashboard powered by a multi-agent AI pipeline.",
+  "requestFramePermissions": ["geolocation"],
   "majorCapabilities": []
 }
