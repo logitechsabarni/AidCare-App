@@ -1,0 +1,3 @@
+# This project uses Node.js and TypeScript.
+# Please refer to package.json for dependencies.
+# To run: npm install && npm run dev
