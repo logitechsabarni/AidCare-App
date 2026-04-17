@@ -625,9 +625,16 @@ export default function App() {
     { name: "control", label: "Final_Audit", status: "idle" },
   ]);
 
+  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
+
   const addLog = React.useCallback((msg: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
   }, []);
+
+  const isQuotaError = (err: any) => {
+    const msg = err?.message || String(err);
+    return msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota");
+  };
 
   const updateStep = React.useCallback((name: string, status: PipelineStep["status"], latency?: string) => {
     setSteps(prev => prev.map(s => s.name === name ? { ...s, status, latency } : s));
@@ -637,11 +644,12 @@ export default function App() {
     const start = performance.now();
     addLog(`INITIALIZING ${name.toUpperCase()}...`);
     
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        systemInstruction: `You are the ${name} of the AidFlow Intelligence Command Center. Provide high-density, strategic intelligence in precise JSON. 
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          systemInstruction: `You are the ${name} of the AidFlow Intelligence Command Center. Provide high-density, strategic intelligence in precise JSON. 
 
 MANDATORY RULES:
 1. All volunteers must belong to: [Red Cross, NDRF, UNICEF, Goonj, CARE India, Doctors Without Borders].
@@ -650,18 +658,24 @@ MANDATORY RULES:
 4. For the Input Agent, always provide precise, real-world lat/lng coordinates for the identified disaster location. For example: Wayanad, Kerala is approx 11.6854, 76.1320. Ensure coordinates are geographically accurate for the specific state/province.
 5. Location Naming: Always include the State/Province in the location name (e.g. "Wayanad, Kerala, India" instead of just "Wayanad").
 6. For the Priority Agent, provide feature importance weights (0-1) summing to approx 1.`,
-        responseMimeType: "application/json",
-        responseSchema: schema
+          responseMimeType: "application/json",
+          responseSchema: schema
+        }
+      });
+
+      if (!response.text) throw new Error(`${name} empty response`);
+      const end = performance.now();
+      const duration = Math.round(end - start);
+      addLog(`${name.toUpperCase()} COMPLETED [${duration}ms]`);
+      return { data: JSON.parse(response.text), latency: duration.toString() };
+    } catch (err: any) {
+      if (isQuotaError(err)) {
+        setIsQuotaExceeded(true);
+        throw new Error("QUOTA_EXHAUSTED");
       }
-    });
-
-    const end = performance.now();
-    const duration = Math.round(end - start);
-
-    if (!response.text) throw new Error(`${name} empty response`);
-    addLog(`${name.toUpperCase()} COMPLETED [${duration}ms]`);
-    return { data: JSON.parse(response.text), latency: duration.toString() };
-  }, [addLog]);
+      throw err;
+    }
+  }, [addLog, setIsQuotaExceeded]);
 
   const handleAnalyze = React.useCallback(async (e: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -841,9 +855,14 @@ MANDATORY RULES:
         content: `Dossier compiled for ${res.location}. Severity characterized as ${res.severity}. Strategic deployment includes ${res.volunteer_count} operatives across ${[...new Set(res.volunteer_plan.map(v => v.organization))].join(', ')}. How shall we proceed?`
       }]);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("PIPELINE_TERMINATED: NODE_ERROR");
+      if (err.message === "QUOTA_EXHAUSTED" || isQuotaError(err)) {
+        setError("RESOURCE_EXHAUSTED: AI Quota limit reached. Please check your Gemini API plan.");
+        setIsQuotaExceeded(true);
+      } else {
+        setError("PIPELINE_TERMINATED: NODE_ERROR");
+      }
       addLog("!!! CRITICAL SYSTEM FAILURE !!!");
     } finally {
       setLoading(false);
@@ -871,9 +890,14 @@ MANDATORY RULES:
       });
       
       setChatHistory(prev => [...prev, { role: "assistant", content: response.text || "COMM_LINK_ERROR" }]);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setChatHistory(prev => [...prev, { role: "assistant", content: "ERROR: NEURAL_LINK_FAILED" }]);
+      if (isQuotaError(err)) {
+        setChatHistory(prev => [...prev, { role: "assistant", content: "ERROR: NEURAL_LINK_LIMIT_EXCEEDED. AI quota has been exhausted. Please retry later or upgrade your plan." }]);
+        setIsQuotaExceeded(true);
+      } else {
+        setChatHistory(prev => [...prev, { role: "assistant", content: "ERROR: NEURAL_LINK_FAILED" }]);
+      }
     } finally {
       setIsChatLoading(false);
     }
@@ -967,6 +991,22 @@ MANDATORY RULES:
         </div>
 
         <div className="space-y-6 flex-1 flex flex-col">
+          {isQuotaExceeded && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-red-500/10 border border-red-500/50 p-4 rounded-xl flex items-start gap-4 mb-4"
+            >
+              <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="mono text-[10px] font-black text-red-500 uppercase tracking-widest">AI_QUOTA_EXHAUSTED</p>
+                <p className="text-[10px] text-theme-text-dim leading-relaxed">
+                  The mission advisor's neural link has reached its throughput limit. Please check your Gemini API plan and billing at <a href="https://ai.google.dev/gemini-api/docs/rate-limits" target="_blank" rel="noopener noreferrer" className="text-red-400 underline underline-offset-2">ai.google.dev</a>.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
           <section className="bg-black/40 border border-theme-border rounded-xl p-4 glow-card">
             <div className="flex items-center gap-2 mb-3">
               <Database className="w-4 h-4 text-theme-accent" />
