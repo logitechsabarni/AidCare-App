@@ -46,6 +46,7 @@ import {
   Maximize2,
   Filter,
   BarChart3,
+  BarChart2,
   Bot
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -65,7 +66,15 @@ import {
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
-  PolarRadiusAxis
+  PolarRadiusAxis,
+  ScatterChart,
+  Scatter,
+  ZAxis,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  Legend
 } from "recharts";
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -247,6 +256,192 @@ const ResourceWheel = React.memo(({ data }: { data: MachineJSON["resource_distri
 
 ResourceWheel.displayName = "ResourceWheel";
 
+const TacticalScatterPlot = React.memo(({ seed }: { seed?: string }) => {
+  const data = useMemo(() => {
+    return Array.from({ length: 15 }, (_, i) => ({
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      z: Math.random() * 1000,
+      id: `UN-${i}`
+    }));
+  }, [seed]);
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+        <XAxis type="number" dataKey="x" name="Distance" unit="km" stroke="#71717A" fontSize={8} tickLine={false} axisLine={false} />
+        <YAxis type="number" dataKey="y" name="Density" unit="%" stroke="#71717A" fontSize={8} tickLine={false} axisLine={false} />
+        <ZAxis type="number" dataKey="z" range={[60, 400]} name="Payload" unit="kg" />
+        <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: "#0C0C0E", border: "1px solid #1F1F23", borderRadius: "8px", fontSize: "10px" }} />
+        <Scatter name="Resource Density" data={data} fill="#FF3D3D">
+           {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={index % 2 === 0 ? "#FF3D3D" : "#3B82F6"} />
+           ))}
+        </Scatter>
+      </ScatterChart>
+    </ResponsiveContainer>
+  );
+});
+
+TacticalScatterPlot.displayName = "TacticalScatterPlot";
+
+const NeuralMeshVisualizer = React.memo(() => {
+  const rings = [0, 1, 2, 3];
+  
+  return (
+    <div className="relative w-full h-full overflow-hidden bg-[#020203] rounded-2xl border border-theme-border group perspective-1000">
+      {/* Background Deep Space / Scanning Lines */}
+      <div className="absolute inset-0 opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
+      
+      <svg className="absolute inset-0 w-full h-full opacity-30">
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        <pattern id="neuralPatternComplex" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+           <circle cx="20" cy="20" r="0.5" fill="#FF3D3D" fillOpacity="0.5" />
+           <path d="M 0 20 L 40 20 M 20 0 L 20 40" stroke="#FF3D3D" strokeWidth="0.2" strokeOpacity="0.1" />
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#neuralPatternComplex)" />
+        
+        {/* Wandering Data Streams */}
+        {[...Array(5)].map((_, i) => (
+          <motion.circle
+            key={i}
+            r="1"
+            fill="#FF3D3D"
+            animate={{
+              cx: [Math.random() * 400, Math.random() * 400],
+              cy: [Math.random() * 400, Math.random() * 400],
+              opacity: [0, 0.8, 0],
+              scale: [0.5, 1.5, 0.5]
+            }}
+            transition={{
+              duration: 5 + Math.random() * 5,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+            filter="url(#glow)"
+          />
+        ))}
+      </svg>
+
+      {/* Main Holographic Core */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+         <div className="relative w-56 h-56 transform-gpu group-hover:scale-110 transition-transform duration-700">
+            {/* Spinning Rings with Gradients */}
+            {rings.map((i) => (
+              <motion.div
+                key={i}
+                initial={{ rotate: i * 90, scale: 0.7, opacity: 0 }}
+                animate={{ 
+                  rotate: (i * 90) + (i % 2 === 0 ? 360 : -360),
+                  scale: [0.8, 1, 0.8],
+                  opacity: [0.1, 0.4, 0.1],
+                  borderRadius: [
+                    "40% 60% 70% 30% / 40% 40% 60% 60%", 
+                    "60% 40% 30% 70% / 60% 60% 40% 40%",
+                    "40% 60% 70% 30% / 40% 40% 60% 60%"
+                  ]
+                }}
+                transition={{ 
+                  duration: 10 + i * 3, 
+                  repeat: Infinity, 
+                  ease: "easeInOut" 
+                }}
+                className="absolute inset-0 border-2 border-transparent"
+                style={{
+                  background: `linear-gradient(${i * 45}deg, transparent, rgba(255,61,61,0.2), transparent)`,
+                  borderImage: `linear-gradient(${i * 90}deg, #FF3D3D, #3B82F6) 1`,
+                  maskImage: `radial-gradient(circle at center, transparent 65%, black 100%)`,
+                  WebkitMaskImage: `radial-gradient(circle at center, transparent 65%, black 100%)`,
+                  filter: 'blur(0.5px)'
+                }}
+              />
+            ))}
+            
+            {/* Central Bio-Node */}
+            <div className="absolute inset-0 flex items-center justify-center">
+               <div className="relative">
+                  {/* Aura Layers */}
+                  <motion.div
+                    animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ duration: 3, repeat: Infinity }}
+                    className="absolute inset-0 bg-theme-accent/30 blur-2xl rounded-full"
+                  />
+                  <motion.div
+                    animate={{ scale: [1, 2, 1], opacity: [0.1, 0.3, 0.1] }}
+                    transition={{ duration: 5, repeat: Infinity }}
+                    className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"
+                  />
+                  
+                  {/* The Icon Container - Glassmorphism */}
+                  <div className="relative z-10 p-5 bg-gradient-to-br from-black/80 to-theme-border/20 border border-theme-accent/50 rounded-[2rem] backdrop-blur-xl shadow-[0_0_30px_rgba(255,61,61,0.2)]">
+                    <Brain className="w-10 h-10 text-theme-accent filter drop-shadow-[0_0_10px_rgba(255,61,61,0.8)]" />
+                    
+                    {/* Interior Scanning Ray */}
+                    <motion.div
+                      animate={{ top: ['0%', '100%', '0%'] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-x-0 h-[1px] bg-theme-accent shadow-[0_0_8px_rgba(255,61,61,1)] z-20"
+                    />
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+
+      {/* High-Tech HUD Overlays */}
+      <div className="absolute inset-0 p-6 flex flex-col justify-between pointer-events-none">
+         <div className="flex justify-between items-start">
+            <div className="flex flex-col gap-1">
+               <span className="mono text-[10px] text-theme-accent font-black tracking-tighter flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-theme-accent animate-pulse" />
+                  ML_KINETIC_SYNC
+               </span>
+               <div className="flex gap-1">
+                  {[...Array(8)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      animate={{ scaleY: [0.3, 1, 0.3] }}
+                      transition={{ duration: 0.5, delay: i * 0.1, repeat: Infinity }}
+                      className="w-[2px] h-3 bg-theme-accent/40 rounded-full"
+                    />
+                  ))}
+               </div>
+            </div>
+            <div className="mono text-[8px] text-theme-text-dim text-right font-bold space-y-1">
+               <div>VECTOR::0042.88</div>
+               <div>RECOGNITION::ENGAGED</div>
+               <div className="text-theme-accent font-black">STABILITY::99.4%</div>
+            </div>
+         </div>
+
+         <div className="flex items-end justify-between">
+            <div className="space-y-1">
+               <div className="flex items-center gap-2">
+                  <span className="mono text-[8px] text-theme-text-dim uppercase font-black tracking-[0.3em]">Neural_Topology</span>
+                  <div className="h-[1px] w-12 bg-theme-border flex-grow" />
+               </div>
+               <span className="mono text-[7px] text-theme-text-dim uppercase tracking-wider opacity-60">Deep_Supply_Sync_Engaged_Sector_07</span>
+            </div>
+            <div className="w-12 h-12 border-b-2 border-r-2 border-theme-accent p-1 opacity-40">
+               <div className="w-full h-full border border-theme-accent/20 border-dashed" />
+            </div>
+         </div>
+      </div>
+    </div>
+  );
+});
+
+NeuralMeshVisualizer.displayName = "NeuralMeshVisualizer";
+
 const PipelineStepIndicator = React.memo(({ step }: { step: PipelineStep }) => (
   <div className="flex flex-col items-center gap-2 group flex-1 relative">
     <div className={cn(
@@ -352,17 +547,57 @@ ImportanceChart.displayName = "ImportanceChart";
 const HeatmapOverlay = React.memo(({ lat, lng }: { lat: number, lng: number }) => {
   return (
     <div className="w-full h-full rounded-lg overflow-hidden border border-theme-border relative">
-      <MapContainer center={[lat, lng]} zoom={5} style={{ height: "100%", width: "100%" }}>
+      <MapContainer center={[lat, lng]} zoom={5} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           attribution='&copy; OpenStreetMap contributors'
         />
         <MapSetter lat={lat} lng={lng} />
-        {/* Mock heat clusters */}
-        <Circle center={[lat, lng]} radius={50000} pathOptions={{ stroke: false, fillOpacity: 0.4, fillColor: "#FF3D3D" }} />
-        <Circle center={[lat + 0.5, lng - 0.5]} radius={30000} pathOptions={{ stroke: false, fillOpacity: 0.2, fillColor: "#F59E0B" }} />
-        <Circle center={[lat - 0.8, lng + 0.3]} radius={40000} pathOptions={{ stroke: false, fillOpacity: 0.3, fillColor: "#FF3D3D" }} />
+        {/* Mock heat clusters with pulsing effect */}
+        {[
+          { pos: [lat, lng] as [number, number], r: 80000, op: 0.4, c: "#FF3D3D" },
+          { pos: [lat + 1.2, lng - 0.8] as [number, number], r: 40000, op: 0.2, c: "#F59E0B" },
+          { pos: [lat - 0.5, lng + 1.5] as [number, number], r: 60000, op: 0.3, c: "#EF4444" },
+          { pos: [lat + 2, lng + 2] as [number, number], r: 30000, op: 0.1, c: "#3B82F6" }
+        ].map((cluster, i) => (
+          <React.Fragment key={i}>
+            <Circle 
+              center={cluster.pos} 
+              radius={cluster.r} 
+              pathOptions={{ stroke: false, fillOpacity: cluster.op, fillColor: cluster.c }} 
+            />
+            <Circle 
+              center={cluster.pos} 
+              radius={cluster.r * 1.5} 
+              pathOptions={{ stroke: true, color: cluster.c, weight: 1, fill: false, dashArray: "5, 10" }} 
+            />
+          </React.Fragment>
+        ))}
       </MapContainer>
+      
+      {/* Legend Overlay */}
+      <div className="absolute bottom-6 left-6 z-[1000] bg-black/80 backdrop-blur-md border border-theme-border p-4 rounded-xl flex flex-col gap-3">
+         <span className="mono text-[9px] font-black text-theme-accent uppercase tracking-widest border-b border-theme-border pb-2">Spectral_Density_Key</span>
+         <div className="space-y-2">
+            {[
+              { label: "High Casualty Probability", color: "bg-[#FF3D3D]" },
+              { label: "Infrastructure Collapse", color: "bg-[#F59E0B]" },
+              { label: "Medical Resource Deficit", color: "bg-[#EF4444]" },
+              { label: "In-Transit Logistics", color: "bg-[#3B82F6]" }
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-3">
+                 <div className={cn("w-2 h-2 rounded-full", item.color)} />
+                 <span className="mono text-[8px] text-theme-text-dim uppercase">{item.label}</span>
+              </div>
+            ))}
+         </div>
+      </div>
+      
+      {/* HUD Info */}
+      <div className="absolute top-6 right-6 z-[1000] flex flex-col items-end gap-2">
+         <div className="px-3 py-1 bg-theme-accent text-white mono text-[10px] font-black uppercase rounded shadow-lg">Heatmap_Mode: MULTISPECTRAL</div>
+         <div className="px-3 py-1 bg-black/60 border border-white/20 rounded mono text-[9px] text-theme-text-dim">SCAN_FREQ: 14.2 GHz</div>
+      </div>
     </div>
   );
 });
@@ -495,7 +730,12 @@ MANDATORY RULES:
 
       // 4. Match
       updateStep("match", "running");
-      const { data: matData, latency: l4 } = await runAgent("MatchAgent", `Deploy a specialized team (5-8 personnel) for ${clsData.need_type} disaster. Use at least 4 DIFFERENT NGOs from the list. Tasks must be highly specific to the disaster context.`, {
+      const { data: matData, latency: l4 } = await runAgent("MatchAgent", `Deploy a specialized personnel pool for a ${priData.severity} severity ${clsData.need_type} disaster. 
+      SCALE REQUIREMENTS: 
+      - If 'Critical': 15-22 personnel, min 7 unique NGOs. 
+      - If 'High': 10-12 personnel, min 5 unique NGOs. 
+      NGO LIST: Red Cross, MSF, OXFAM, UNICEF, WFP, CARE, Mercy Corps, NRC, IRC, Direct Relief.
+      CRITICAL: Each role must have a UNIQUE TACTICAL TASK. For example, 'Deploying Portable Water Filtration Unit Model X' or 'Setting up Triage Zone Gamma-4'. Use technical/clinical terminology.`, {
         type: Type.OBJECT,
         properties: {
           volunteer_count: { type: Type.INTEGER },
@@ -521,7 +761,9 @@ MANDATORY RULES:
 
       // 5. Audit
       updateStep("control", "running");
-      const { data: finData, latency: l5 } = await runAgent("ControllerAgent", `Final review. Assemble full mission dossier. CRITICAL: Maintain NGO diversity (min 3 unique orgs). Ensure tasks are distinct.`, {
+      const { data: finData, latency: l5 } = await runAgent("ControllerAgent", `Final review. Assemble full mission dossier. 
+      CRITICAL: Validate NGO diversity. For 'Critical' severity, ensure at least 5-6 unique organizations are represented. For 'High', at least 4.
+      Ensure tasks are distinct and clinical.`, {
         type: Type.OBJECT,
         properties: {
           raw_input: { type: Type.STRING },
@@ -706,13 +948,14 @@ MANDATORY RULES:
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-theme-bg text-theme-text-main relative select-none">
+    <div className="flex flex-col h-screen overflow-hidden bg-theme-bg text-theme-text-main relative select-none">
       <div className="absolute inset-0 cyber-grid opacity-20 pointer-events-none" />
       <div className="radar-sweep" />
       <div className="scanline" />
 
-      {/* Hero / Left Control Rail */}
-      <aside className="w-[380px] border-r border-theme-border flex flex-col p-6 z-20 bg-theme-surface/80 backdrop-blur-md">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Hero / Left Control Rail */}
+        <aside className="w-[380px] border-r border-theme-border flex flex-col p-6 z-20 bg-theme-surface/80 backdrop-blur-md">
         <div className="flex items-center gap-4 mb-8">
            <div className="w-12 h-12 bg-theme-accent rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(255,61,61,0.5)]">
              <Globe className="w-7 h-7 text-white" />
@@ -799,35 +1042,53 @@ MANDATORY RULES:
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-8 flex flex-col gap-6 relative overflow-y-auto">
+      <main className="flex-1 p-8 flex flex-col gap-6 relative overflow-y-auto bg-[radial-gradient(circle_at_top_right,rgba(255,61,61,0.05),transparent_40%)]">
+         {/* HUD Corner Accents */}
+         <div className="absolute top-0 left-0 w-32 h-32 border-t border-l border-theme-border/30 pointer-events-none m-4 rounded-tl-3xl" />
+         <div className="absolute top-0 right-0 w-32 h-32 border-t border-r border-theme-border/30 pointer-events-none m-4 rounded-tr-3xl" />
+         <div className="absolute bottom-0 left-0 w-32 h-32 border-b border-l border-theme-border/30 pointer-events-none m-4 rounded-bl-3xl" />
+         <div className="absolute bottom-0 right-0 w-32 h-32 border-b border-r border-theme-border/30 pointer-events-none m-4 rounded-br-3xl" />
          
-         {/* Navigation Tabs */}
-         <nav className="flex items-center gap-1 bg-theme-surface/40 p-1 border border-theme-border rounded-xl w-fit">
-            {[
-              { id: "situation", label: "Situation", icon: LayoutDashboard },
-              { id: "analysis", label: "AI Analysis", icon: Brain },
-              { id: "volunteers", label: "Personnel", icon: Users },
-              { id: "resources", label: "Resources", icon: Truck },
-              { id: "heatmap", label: "Heatmap", icon: Globe2 },
-              { id: "chat", label: "AI Advisor", icon: Bot },
-              { id: "pipeline", label: "Logistics", icon: Workflow },
-              { id: "download", label: "Export", icon: DownloadCloud },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as TabType)}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg mono text-[10px] font-black uppercase tracking-widest transition-all",
-                  activeTab === tab.id 
-                    ? "bg-theme-accent text-white shadow-[0_0_15px_rgba(255,61,61,0.3)]" 
-                    : "text-theme-text-dim hover:text-theme-text-main hover:bg-white/5"
-                )}
-              >
-                <tab.icon className="w-3 h-3" />
-                {tab.label}
-              </button>
-            ))}
-         </nav>
+         {/* Navigation Tabs and HUD Control */}
+         <div className="flex items-center justify-between gap-6 z-50">
+            <nav className="flex items-center gap-1 bg-theme-surface/40 p-1 border border-theme-border rounded-xl w-fit">
+               {[
+                 { id: "situation", label: "Situation", icon: LayoutDashboard },
+                 { id: "analysis", label: "AI Analysis", icon: Brain },
+                 { id: "volunteers", label: "Personnel", icon: Users },
+                 { id: "resources", label: "Resources", icon: Truck },
+                 { id: "heatmap", label: "Heatmap", icon: Globe2 },
+                 { id: "chat", label: "AI Advisor", icon: Bot },
+                 { id: "pipeline", label: "Logistics", icon: Workflow },
+                 { id: "download", label: "Export", icon: DownloadCloud },
+               ].map((tab) => (
+                 <button
+                   key={tab.id}
+                   onClick={() => setActiveTab(tab.id as TabType)}
+                   className={cn(
+                     "flex items-center gap-2 px-4 py-2 rounded-lg mono text-[10px] font-black uppercase tracking-widest transition-all",
+                     activeTab === tab.id 
+                       ? "bg-theme-accent text-white shadow-[0_0_15px_rgba(255,61,61,0.3)]" 
+                       : "text-theme-text-dim hover:text-theme-text-main hover:bg-white/5"
+                   )}
+                 >
+                   <tab.icon className="w-3 h-3" />
+                   {tab.label}
+                 </button>
+               ))}
+            </nav>
+
+            <div className="flex items-center gap-4 bg-theme-surface border border-theme-border rounded-xl px-4 py-2 hover:border-theme-accent/50 transition-colors group cursor-help shrink-0 shadow-xl">
+               <div className="flex -space-x-2">
+                  {["AI", "LLM", "AGI", "OP"].map((lbl, i) => <div key={i} className="w-5 h-5 rounded-full border border-theme-surface bg-theme-border flex items-center justify-center mono text-[7px] font-black text-theme-accent">{lbl}</div>)}
+               </div>
+               <div className="flex flex-col">
+                  <span className="mono text-[8px] text-theme-accent font-black uppercase tracking-widest leading-none">Agents_Monitoring_Feed</span>
+                  <span className="mono text-[7px] text-theme-text-dim uppercase tracking-tighter mt-0.5 whitespace-nowrap">Autonomous Intelligence Engine Active</span>
+               </div>
+               <div className="w-2 h-2 rounded-full bg-theme-success animate-pulse shadow-[0_0_10px_#22C55E]" />
+            </div>
+         </div>
 
          <div className="flex-1 h-full">
            <AnimatePresence mode="wait">
@@ -840,7 +1101,7 @@ MANDATORY RULES:
                className="h-full"
              >
                 {activeTab === "situation" && (
-                  <div className="grid grid-cols-12 gap-6 h-full">
+                  <div className="grid grid-cols-12 gap-6 pb-32">
                     {/* Top Banner Analysis */}
                     <section className={cn(
                       "col-span-12 h-32 bg-theme-surface/50 border border-theme-border rounded-2xl p-6 flex items-center gap-12 transition-all glow-card group",
@@ -894,9 +1155,28 @@ MANDATORY RULES:
                     </section>
 
                     <div className="col-span-8 space-y-6">
-                      <div className="relative h-64 rounded-2xl overflow-hidden border border-theme-border group">
+                      <div className="relative h-72 rounded-2xl overflow-hidden border border-theme-border group shadow-[0_0_30px_rgba(255,61,61,0.15)]">
                         {result ? (
-                          <TacticalMap lat={result.lat} lng={result.lng} type={result.need_type} location={result.location} />
+                          <div className="relative h-full w-full">
+                            <TacticalMap lat={result.lat} lng={result.lng} type={result.need_type} location={result.location} />
+                            {/* Scanning HUD Overlay */}
+                            <div className="absolute inset-0 pointer-events-none border-[20px] border-transparent">
+                               <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-theme-accent/50" />
+                               <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-theme-accent/50" />
+                               <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-theme-accent/50" />
+                               <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-theme-accent/50" />
+                               
+                               {/* Scanning Line */}
+                               <motion.div 
+                                 animate={{ top: ["0%", "100%", "0%"] }}
+                                 transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                                 className="absolute left-0 right-0 h-[1px] bg-theme-accent/30 shadow-[0_0_10px_rgba(255,61,61,0.5)] z-20"
+                               />
+
+                               {/* Grid Overlay */}
+                               <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20" />
+                            </div>
+                          </div>
                         ) : (
                           <>
                             <img 
@@ -911,45 +1191,141 @@ MANDATORY RULES:
                           </>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none" />
-                        <div className="absolute bottom-6 left-6 right-6 pointer-events-none">
-                          <span className="px-2 py-1 bg-theme-accent text-white mono text-[10px] font-bold uppercase rounded mb-2 inline-block">Situation_Visual_Relay</span>
-                          <h3 className="text-xl font-bold text-white mb-2">{result?.need_type || "Awaiting Target Data"} - Ground Reality</h3>
-                          <p className="text-theme-text-dim text-sm max-w-xl">Satellite spectral analysis indicates structural anomalies and high-density thermal signatures consistent with humanitarian distress levels in this sector.</p>
+                        <div className="absolute bottom-6 left-6 right-6 pointer-events-none flex justify-between items-end">
+                          <div>
+                            <span className="px-2 py-1 bg-theme-accent text-white mono text-[10px] font-bold uppercase rounded mb-2 inline-block shadow-[0_0_10px_rgba(255,61,61,0.5)]">Satellite_Live_Relay</span>
+                            <h3 className="text-xl font-bold text-white mb-1">{result?.location || "Target Acquisition..."}</h3>
+                            <div className="flex gap-4 mono text-[9px] text-theme-text-dim">
+                               <span>LAT: {result?.lat?.toFixed(4) || "0.0000"}</span>
+                               <span>LNG: {result?.lng?.toFixed(4) || "0.0000"}</span>
+                               <span>ALT: 420km</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                             <div className="mono text-[8px] text-theme-accent font-black uppercase mb-1 flex items-center justify-end gap-1">
+                               <div className="w-1.5 h-1.5 rounded-full bg-theme-accent animate-ping" />
+                               Neural_Link_Stable
+                             </div>
+                             <div className="px-3 py-1 bg-black/60 border border-white/20 rounded-full mono text-[9px] text-white">
+                               RES: 0.15m/px
+                             </div>
+                          </div>
                         </div>
-                        <div className="absolute top-6 right-6 flex flex-col gap-2">
-                           <div className="px-3 py-1 bg-black/60 border border-white/20 rounded-full mono text-[9px] flex items-center gap-2">
-                              <div className="w-1.5 h-1.5 rounded-full bg-theme-accent animate-pulse" />
-                              CAM_01_ACTIVE
+                      </div>
+
+                       {/* Multispectral Imagery Gallery */}
+                       <div className="grid grid-cols-4 gap-4">
+                          {[
+                            { name: "Optical_RGB", filter: "contrast-125 brightness-110", label: "Ground Truth" },
+                            { name: "Infrared_NDVI", filter: "sepia contrast-150 saturate-200 hue-rotate-180", label: "Veg Stress" },
+                            { name: "Thermal_Anomaly", filter: "invert contrast-200 saturate-0 brightness-150", label: "Heat Signatures" },
+                            { name: "Atmospheric_WV", filter: "hue-rotate-180 brightness-75 contrast-120 saturate-200", label: "Humidity Delta" }
+                          ].map((spec, i) => (
+                           <div key={i} className="relative aspect-video rounded-xl overflow-hidden border border-theme-border group cursor-crosshair">
+                              <img 
+                                src={`https://picsum.photos/seed/${result?.location || 'wayanad'}-${spec.name}/400/225`} 
+                                className={cn("w-full h-full object-cover transition-transform duration-500 group-hover:scale-110", spec.filter)}
+                                referrerPolicy="no-referrer"
+                                alt={spec.name}
+                              />
+                               <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all" />
+                               <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded mono text-[8px] text-white font-bold tracking-tighter border border-white/10 uppercase">
+                                 {spec.name}
+                               </div>
+                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 pointer-events-none">
+                                  <div className="flex flex-col items-center gap-1">
+                                    <Maximize2 className="w-5 h-5 text-theme-accent" />
+                                    <span className="mono text-[8px] text-white uppercase font-black tracking-widest">Spectral Scan</span>
+                                  </div>
+                               </div>
                            </div>
-                        </div>
+                         ))}
                       </div>
 
                       <div className="grid grid-cols-2 gap-6">
-                        <div className="bg-theme-surface/50 border border-theme-border rounded-2xl p-6 glow-card">
-                           <div className="flex items-center gap-2 mb-4">
-                             <Info className="w-4 h-4 text-theme-accent" />
-                             <span className="mono text-[10px] font-bold uppercase tracking-widest text-theme-text-dim">Operational_Context</span>
-                           </div>
-                           <p className="text-sm text-theme-text-main leading-relaxed">
-                             {result?.cleaned_input || "Waiting for signal modulation..."}
-                           </p>
-                        </div>
-                        <div className="bg-theme-surface/50 border border-theme-border rounded-2xl p-6 glow-card flex flex-col justify-center items-center text-center">
-                           <div className="w-20 h-20 rounded-full border border-theme-border flex items-center justify-center mb-4 relative">
-                              <MapIcon className="w-10 h-10 text-theme-accent opacity-50" />
-                              <motion.div 
-                                animate={{ rotate: 360 }} 
-                                transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
-                                className="absolute inset-0 border-t-2 border-theme-accent rounded-full"
-                              />
-                           </div>
-                           <span className="mono text-[10px] font-black uppercase text-theme-text-main">{result?.location || "No Sector Lock"}</span>
-                           <span className="mono text-[8px] text-theme-text-dim uppercase mt-1">Geospatial_ID: HQ-992-ALPHA</span>
-                        </div>
+                         <div className="bg-theme-surface/50 border border-theme-border rounded-2xl p-6 glow-card">
+                            <div className="flex items-center gap-2 mb-4">
+                              <Info className="w-4 h-4 text-theme-accent" />
+                              <span className="mono text-[10px] font-bold uppercase tracking-widest text-theme-text-dim">Operational_Context</span>
+                            </div>
+                            <p className="text-sm text-theme-text-main leading-relaxed italic border-l-2 border-theme-accent pl-4 py-1 bg-white/5 rounded-r-lg">
+                              {result?.cleaned_input || "Waiting for signal modulation..."}
+                            </p>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                               {["Logistics_Validated", "Humanitarian_Priority", "Uplink_Secure", "Intel_Sync"].map((tag, i) => (
+                                  <span key={i} className="px-2 py-0.5 bg-theme-accent/10 border border-theme-accent/20 rounded mono text-[7px] text-theme-accent uppercase font-black">{tag}</span>
+                               ))}
+                            </div>
+                         </div>
+                         <div className="bg-theme-surface/50 border border-theme-border rounded-2xl p-6 glow-card flex flex-col items-center justify-center text-center group cursor-pointer hover:bg-theme-border/10 transition-all active:scale-[0.98]">
+                            <div className="w-20 h-20 rounded-full border border-theme-border flex items-center justify-center mb-4 relative overflow-hidden">
+                               <div className="absolute inset-0 bg-theme-accent/5 translate-y-full group-hover:translate-y-0 transition-transform duration-1000" />
+                               <MapIcon className="w-10 h-10 text-theme-accent opacity-50 group-hover:scale-110 group-hover:opacity-100 transition-all z-10" />
+                               <motion.div 
+                                 animate={{ rotate: 360 }} 
+                                 transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
+                                 className="absolute inset-0 border-t-2 border-theme-accent rounded-full"
+                               />
+                               <div className="absolute -top-1 -right-1 w-5 h-5 bg-theme-accent rounded-full flex items-center justify-center text-[10px] text-white font-black animate-bounce shadow-lg">!</div>
+                            </div>
+                            <span className="mono text-[10px] font-black uppercase text-theme-text-main group-hover:text-theme-accent transition-colors">{result?.location || "No Sector Lock"}</span>
+                            <span className="mono text-[8px] text-theme-text-dim uppercase mt-1 tracking-tighter bg-theme-border/20 px-2 py-0.5 rounded-full">GEOSPATIAL::Deep_Sector_Scan</span>
+                         </div>
                       </div>
-                    </div>
+          {/* Interactive Anomalies Feed */}
+          <div className="col-span-12 mb-10">
+             <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                   <Search className="w-3.5 h-3.5 text-theme-accent" />
+                   <span className="mono text-[10px] font-black uppercase tracking-[0.2em] text-theme-text-main">Anomaly_Stream::Spectral_Intelligence</span>
+                </div>
+                <div className="flex items-center gap-2">
+                   <div className="w-1.5 h-1.5 rounded-full bg-theme-accent animate-pulse" />
+                   <span className="mono text-[8px] text-theme-text-dim uppercase tracking-tighter">Live_Deep_Scan_Active</span>
+                </div>
+             </div>
+             <div className="bg-black/40 border border-theme-border rounded-2xl p-5 flex gap-5 overflow-x-auto scrollbar-hide ring-1 ring-white/5 shadow-2xl">
+                {[
+                  { type: "Thermal", loc: "S-Sector", stat: "Elevated", val: "42.8°C", color: "text-orange-500" },
+                  { type: "Structural", loc: "N-Bridge", stat: "Critical", val: "Fracture Detected", color: "text-red-500" },
+                  { type: "Population", loc: "City_Center", stat: "Congested", val: "94% Density", color: "text-yellow-500" },
+                  { type: "Bio-Hazard", loc: "W-Coast", stat: "Pending", val: "Awaiting Data", color: "text-purple-500" },
+                  { type: "Acoustic", loc: "Valley_E", stat: "Normal", val: "Ambient Noise", color: "text-blue-500" }
+                ].map((anomaly, i) => (
+                   <div key={i} className="min-w-[240px] p-5 bg-theme-surface border border-theme-border rounded-xl flex items-center gap-4 hover:border-theme-accent hover:shadow-[0_0_25px_rgba(255,61,61,0.15)] transition-all cursor-crosshair group relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-16 h-16 bg-theme-accent/5 rounded-bl-[40px] translate-x-4 -translate-y-4 group-hover:translate-x-0 group-hover:translate-y-0 transition-transform" />
+                      <div className="w-12 h-12 rounded-xl bg-theme-accent/10 border border-theme-accent/20 flex items-center justify-center text-theme-accent shrink-0 relative overflow-hidden">
+                         <Zap className="w-6 h-6 group-hover:scale-110 transition-transform z-10" />
+                         <motion.div 
+                           animate={{ scale: [1, 1.5, 1], opacity: [0.1, 0.3, 0.1] }}
+                           transition={{ repeat: Infinity, duration: 2 }}
+                           className="absolute inset-0 bg-theme-accent rounded-full"
+                         />
+                      </div>
+                      <div className="flex flex-col flex-1">
+                         <div className="flex items-start justify-between">
+                            <span className="mono text-[8px] text-theme-text-dim uppercase leading-none mb-1.5">{anomaly.type}</span>
+                            <div className="w-1 h-1 rounded-full bg-theme-accent animate-ping" />
+                         </div>
+                         <span className="mono text-[11px] font-black text-white uppercase tracking-tight mb-2">{anomaly.loc}</span>
+                         <div className="flex items-center justify-between mt-auto">
+                            <span className={cn(
+                               "mono text-[7px] font-black uppercase px-2 py-0.5 rounded-sm", 
+                               anomaly.stat === 'Critical' ? 'bg-theme-accent text-white' : 'bg-theme-border/60 text-theme-text-dim'
+                            )}>
+                               {anomaly.stat}
+                            </span>
+                            <span className={cn("mono text-[9px] font-bold tracking-tighter", anomaly.color || "text-theme-accent")}>
+                               {anomaly.val}
+                            </span>
+                         </div>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-theme-accent origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500" />
+                   </div>
+                ))}
+             </div>
+          </div>
 
-                    <div className="col-span-4 space-y-6">
                        <div className="bg-theme-surface/50 border border-theme-border rounded-2xl p-6 glow-card">
                           <div className="flex items-center gap-2 mb-4">
                             <Activity className="w-4 h-4 text-theme-accent" />
@@ -975,7 +1351,7 @@ MANDATORY RULES:
                 )}
 
                 {activeTab === "analysis" && (
-                  <div className="grid grid-cols-12 gap-6 h-full">
+                  <div className="grid grid-cols-12 gap-6 pb-32">
                      <div className="col-span-4 space-y-6">
                         <div className="bg-theme-surface/50 border border-theme-border rounded-2xl p-6 glow-card flex flex-col items-center">
                            <span className="mono text-[10px] text-theme-text-dim font-bold uppercase tracking-widest self-start mb-4">Priority_Index_Visual</span>
@@ -1106,65 +1482,245 @@ MANDATORY RULES:
                 )}
 
                 {activeTab === "resources" && (
-                  <div className="grid grid-cols-12 gap-6 h-full">
-                     <div className="col-span-5 bg-theme-surface/50 border border-theme-border rounded-2xl p-8 glow-card flex flex-col">
-                        <div className="flex items-center gap-3 mb-8">
-                           <Truck className="w-6 h-6 text-theme-accent" />
-                           <div>
-                             <h3 className="text-lg font-black uppercase tracking-tight">Resource Payload</h3>
-                             <p className="mono text-[9px] text-theme-text-dim">Distribution_Logic: MISSION_CENTERED</p>
+                   <div className="grid grid-cols-12 gap-6 pb-24 overflow-y-auto pr-2 scrollbar-hide">
+                     <div className="col-span-12 grid grid-cols-4 gap-6">
+                        {[
+                          { label: "Medical Supply", color: "#EF4444", value: result?.resource_distribution?.medical_team || 0, icon: Stethoscope },
+                          { label: "Food Rations", color: "#F59E0B", value: result?.resource_distribution?.food_supply_team || 0, icon: Utensils },
+                          { label: "Rescue Units", color: "#10B981", value: result?.resource_distribution?.rescue_team || 0, icon: Shield },
+                          { label: "Logistics Hubs", color: "#3B82F6", value: result?.resource_distribution?.logistics_team || 0, icon: Truck }
+                        ].map((stat, i) => (
+                           <div key={i} className="bg-theme-surface/30 border border-theme-border p-6 rounded-2xl flex items-center justify-between glow-card group">
+                              <div>
+                                 <span className="mono text-[10px] text-theme-text-dim uppercase font-bold tracking-widest">{stat.label}</span>
+                                 <div className="text-3xl font-black mt-1 group-hover:text-theme-accent transition-colors">{stat.value}%</div>
+                              </div>
+                              <div className="w-14 h-14 rounded-full flex items-center justify-center border border-theme-border relative">
+                                 <stat.icon className="w-6 h-6 text-theme-text-dim group-hover:text-theme-accent transition-all" />
+                                 <svg className="absolute inset-0 w-full h-full -rotate-90">
+                                   <circle cx="28" cy="28" r="24" fill="transparent" stroke="currentColor" strokeWidth="4" className="text-white/5" />
+                                   <circle 
+                                     cx="28" cy="28" r="24" fill="transparent" stroke={stat.color} strokeWidth="4" 
+                                     strokeDasharray={150.8}
+                                     strokeDashoffset={150.8 - (150.8 * stat.value) / 100}
+                                     className="transition-all duration-1000"
+                                   />
+                                 </svg>
+                              </div>
                            </div>
-                        </div>
-
-                        <div className="flex-1 min-h-[300px]">
-                           {result && <ResourceWheel data={result.resource_distribution} />}
-                        </div>
-
-                        <div className="mt-8 grid grid-cols-2 gap-4">
-                           {[
-                             { label: "Medical Supply", key: "medical_team", icon: Stethoscope, color: "text-theme-accent" },
-                             { label: "Food Crisis Kit", key: "food_supply_team", icon: Utensils, color: "text-amber-400" },
-                             { label: "Rescue Harness", key: "rescue_team", icon: ShieldCheck, color: "text-theme-success" },
-                             { label: "Logistics Hub", key: "logistics_team", icon: Briefcase, color: "text-sky-400" },
-                           ].map((item, i) => (
-                             <div key={i} className="bg-black/40 border border-theme-border p-4 rounded-xl flex items-center gap-3">
-                                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center bg-white/5", item.color)}>
-                                   <item.icon className="w-5 h-5" />
-                                </div>
-                                <div className="flex flex-col">
-                                   <span className="mono text-[11px] font-black text-white">
-                                      {result ? (result.resource_distribution as any)[item.key] : 0}%
-                                   </span>
-                                   <span className="mono text-[8px] uppercase text-theme-text-dim tracking-widest">{item.label}</span>
+                        ))}
+                     </div>
+                     
+                      <div className="col-span-8 bg-theme-surface/50 border border-theme-border rounded-2xl p-8 glow-card">
+                          <div className="flex items-center justify-between mb-8">
+                             <div className="flex items-center gap-3">
+                                <TrendingUp className="w-6 h-6 text-theme-accent" />
+                                <div>
+                                   <h3 className="text-lg font-black uppercase tracking-tight">Supply Chain Forecast</h3>
+                                   <p className="mono text-[9px] text-theme-text-dim">Logistics_Projection: T+72H_WINDOW</p>
                                 </div>
                              </div>
-                           ))}
-                        </div>
+                             <div className="px-3 py-1 bg-black/40 border border-white/10 rounded-lg mono text-[9px] text-theme-accent font-black">AI_PREDICTOR_V4</div>
+                          </div>
+                         <div className="h-72 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                               <BarChart data={[
+                                 { name: 'Med', val: result?.resource_distribution?.medical_team || 0 },
+                                 { name: 'Food', val: result?.resource_distribution?.food_supply_team || 0 },
+                                 { name: 'Rescue', val: result?.resource_distribution?.rescue_team || 0 },
+                                 { name: 'Log', val: result?.resource_distribution?.logistics_team || 0 }
+                               ]}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#8E9299', fontSize: 10, fontWeight: 'bold'}} />
+                                  <YAxis hide />
+                                  <Tooltip 
+                                    contentStyle={{backgroundColor: '#151619', border: '1px solid #2A2C32', borderRadius: '8px', fontSize: '10px'}}
+                                    cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                                  />
+                                  <Bar dataKey="val" radius={[4, 4, 0, 0]}>
+                                     { [0,1,2,3].map((entry, index) => (
+                                       <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#FF3D3D' : '#FF3D3D80'} />
+                                     ))}
+                                  </Bar>
+                               </BarChart>
+                            </ResponsiveContainer>
+                         </div>
                      </div>
 
-                     <div className="col-span-7 space-y-6">
-                        <div className="bg-theme-surface/50 border border-theme-border rounded-2xl p-6 glow-card">
-                           <h4 className="mono text-[10px] font-black uppercase tracking-widest text-theme-accent mb-4">Tactical Distribution Logic</h4>
-                           <div className="space-y-4">
-                              <p className="text-sm text-theme-text-main leading-relaxed italic">
-                                "{result ? `Analysis of ${result.need_type} factors suggested a weighted priority towards ${Object.entries(result.resource_distribution).sort((a,b) => (b[1] as number) - (a[1] as number))[0][0].replace('_', ' ')} logic to maximize survival rates.` : "Awaiting distribution matrix..."}"
-                              </p>
-                           </div>
-                        </div>
+                      <div className="col-span-4 bg-theme-surface/50 border border-theme-border rounded-2xl p-6 glow-card flex flex-col">
+                          <div className="flex items-center gap-2 mb-6">
+                             <Maximize2 className="w-4 h-4 text-theme-accent" />
+                             <span className="mono text-[10px] text-theme-text-dim uppercase font-bold tracking-widest">Resource_Scatter_Matrix</span>
+                          </div>
+                          <div className="h-64 w-full">
+                             <TacticalScatterPlot seed={result?.location} />
+                          </div>
+                          <p className="mono text-[8px] text-theme-text-dim mt-4 uppercase leading-relaxed font-bold">
+                             Spatial mapping of supply density vs mobilization distance. Multi-factor AI analysis active.
+                          </p>
+                      </div>
 
-                        <div className="grid grid-cols-2 gap-6 h-full">
-                           <div className="bg-white/5 border border-theme-border rounded-xl p-6 flex flex-col items-center justify-center text-center">
-                              <Globe2 className="w-12 h-12 text-theme-accent opacity-30 mb-4" />
-                              <span className="text-2xl font-black mono text-theme-text-main">{result?.people_count || 0}</span>
-                              <span className="mono text-[9px] text-theme-text-dim uppercase">Total_Personnel_Impacted</span>
-                           </div>
-                           <div className="bg-white/5 border border-theme-border rounded-xl p-6 flex flex-col items-center justify-center text-center">
-                              <Layers className="w-12 h-12 text-sky-400 opacity-30 mb-4" />
-                              <span className="text-2xl font-black mono text-theme-text-main">{result ? "ACTIVE" : "IDLE"}</span>
-                              <span className="mono text-[9px] text-theme-text-dim uppercase">Supply_Chain_Status</span>
-                           </div>
-                        </div>
-                     </div>
+                      <div className="col-span-12 grid grid-cols-4 gap-6">
+                         <div className="col-span-2 bg-theme-surface/50 border border-theme-border rounded-2xl p-8 glow-card">
+                            <div className="flex items-center gap-3 mb-6">
+                               <Cpu className="w-5 h-5 text-theme-accent" />
+                               <span className="mono text-[10px] text-theme-text-dim uppercase font-bold tracking-widest">Neural_Aura_Logistics</span>
+                            </div>
+                            <div className="h-64 w-full">
+                               <NeuralMeshVisualizer />
+                            </div>
+                         </div>
+                         <div className="col-span-1 bg-theme-surface/50 border border-theme-border rounded-2xl overflow-hidden glow-card group relative">
+                            <img 
+                              src="https://picsum.photos/seed/logistics/600/800?grayscale" 
+                              className="w-full h-full object-cover opacity-50 transition-transform duration-700 group-hover:scale-110" 
+                              referrerPolicy="no-referrer"
+                              alt="Logistics Sat"
+                            />
+                            <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black to-transparent">
+                               <span className="mono text-[8px] text-white font-black uppercase tracking-widest border-b border-theme-accent pb-1">UAV_Feed::Sector_Red</span>
+                            </div>
+                         </div>
+                         <div className="col-span-1 bg-theme-surface/50 border border-theme-border rounded-2xl overflow-hidden glow-card group relative">
+                            <img 
+                              src="https://picsum.photos/seed/satellite/600/800?blur=1" 
+                              className="w-full h-full object-cover opacity-40 transition-transform duration-700 group-hover:scale-110" 
+                              referrerPolicy="no-referrer"
+                              alt="Sat Vis"
+                            />
+                            <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black to-transparent">
+                               <span className="mono text-[8px] text-white font-black uppercase tracking-widest border-b border-theme-accent pb-1">Sat_Link::Vector_Sync</span>
+                            </div>
+                         </div>
+                      </div>
+
+                      <div className="col-span-4 bg-theme-surface/50 border border-theme-border rounded-2xl p-8 glow-card">
+                          <span className="mono text-[10px] text-theme-text-dim uppercase font-bold tracking-widest mb-6 block border-l-2 border-theme-accent pl-2">ML_Sentiment_Analysis</span>
+                          <div className="space-y-4">
+                             {[
+                               { label: "Community Urgency", val: 88 },
+                               { label: "Infrastructure Load", val: 42 },
+                               { label: "Transit Integrity", val: 65 }
+                             ].map((m, i) => (
+                               <div key={i} className="space-y-1">
+                                  <div className="flex justify-between mono text-[8px] uppercase font-bold">
+                                     <span className="text-theme-text-dim">{m.label}</span>
+                                     <span className="text-theme-accent">{m.val}%</span>
+                                  </div>
+                                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                                     <motion.div 
+                                       initial={{ width: 0 }}
+                                       animate={{ width: `${m.val}%` }}
+                                       className="h-full bg-theme-accent"
+                                     />
+                                  </div>
+                               </div>
+                             ))}
+                          </div>
+                      </div>
+
+                      <div className="col-span-8 bg-theme-surface/50 border border-theme-border rounded-2xl p-8 glow-card group relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+                             <Settings className="w-24 h-24 animate-spin-slow rotate-45" />
+                          </div>
+                          <div className="flex items-center gap-3 mb-6">
+                             <Layers className="w-5 h-5 text-theme-accent" />
+                             <span className="mono text-[10px] text-theme-text-dim uppercase font-bold tracking-widest">Synthetic_Projection_Sync</span>
+                          </div>
+                          <div className="h-48 w-full">
+                             <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={[
+                                  { time: 'T-24', load: 30, capacity: 50 },
+                                  { time: 'T-12', load: 45, capacity: 55 },
+                                  { time: 'T-0', load: 70, capacity: 60 },
+                                  { time: 'T+12', load: 85, capacity: 75 },
+                                  { time: 'T+24', load: 95, capacity: 85 },
+                                ]}>
+                                   <defs>
+                                      <linearGradient id="colorLoad" x1="0" y1="0" x2="0" y2="1">
+                                         <stop offset="5%" stopColor="#FF3D3D" stopOpacity={0.3}/>
+                                         <stop offset="95%" stopColor="#FF3D3D" stopOpacity={0}/>
+                                      </linearGradient>
+                                   </defs>
+                                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                   <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{fill: '#71717A', fontSize: 8}} />
+                                   <YAxis hide />
+                                   <Tooltip contentStyle={{backgroundColor: '#0C0C0E', border: '1px solid #1F1F23', borderRadius: '8px', fontSize: '10px'}} />
+                                   <Area type="monotone" dataKey="load" stroke="#FF3D3D" fillOpacity={1} fill="url(#colorLoad)" />
+                                   <Line type="monotone" dataKey="capacity" stroke="#3B82F6" strokeDasharray="5 5" dot={false} />
+                                </AreaChart>
+                             </ResponsiveContainer>
+                          </div>
+                          <p className="mono text-[9px] text-theme-text-dim mt-4 uppercase tracking-tighter">
+                             Predicted workload shift based on incoming sensor reports. Blue-dash indicates emergency overhead limit.
+                          </p>
+                      </div>
+
+                      <div className="col-span-12 grid grid-cols-3 gap-6">
+                         <div className="col-span-1 bg-theme-surface/50 border border-theme-border rounded-2xl p-6 glow-card">
+                             <div className="flex items-center gap-2 mb-6">
+                                <BarChart2 className="w-4 h-4 text-theme-accent" />
+                                <span className="mono text-[10px] text-theme-text-dim uppercase font-bold tracking-widest">Sector_Load_Balance</span>
+                             </div>
+                             <div className="h-48 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                   <BarChart data={[
+                                      { name: 'SEC_A', active: 4000, standBy: 2400 },
+                                      { name: 'SEC_B', active: 3000, standBy: 1398 },
+                                      { name: 'SEC_C', active: 2000, standBy: 3800 },
+                                      { name: 'SEC_D', active: 2780, standBy: 3908 },
+                                   ]} layout="vertical">
+                                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" horizontal={false} />
+                                      <XAxis type="number" hide />
+                                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fill: '#71717A', fontSize: 8}} />
+                                      <Tooltip contentStyle={{backgroundColor: '#0C0C0E', border: 'none', borderRadius: '4px'}} />
+                                      <Bar dataKey="active" stackId="a" fill="#FF3D3D" radius={[0, 0, 0, 0]} />
+                                      <Bar dataKey="standBy" stackId="a" fill="#FF3D3D33" radius={[0, 4, 4, 0]} />
+                                   </BarChart>
+                                </ResponsiveContainer>
+                             </div>
+                             <div className="mt-4 flex gap-4">
+                                <div className="flex items-center gap-1">
+                                   <div className="w-2 h-2 bg-theme-accent rounded-sm" />
+                                   <span className="mono text-[7px] text-theme-text-dim uppercase">Active_Deployment</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                   <div className="w-2 h-2 bg-theme-accent/20 rounded-sm" />
+                                   <span className="mono text-[7px] text-theme-text-dim uppercase">Standby_Reserve</span>
+                                </div>
+                             </div>
+                         </div>
+
+                         <div className="col-span-2 bg-theme-surface/50 border border-theme-border rounded-2xl p-8 glow-card">
+                             <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-3">
+                                   <Activity className="w-5 h-5 text-theme-accent" />
+                                   <span className="mono text-[10px] text-theme-text-dim uppercase font-bold tracking-widest">Global_Efficiency_Index</span>
+                                </div>
+                                <div className="px-2 py-1 border border-theme-accent/20 rounded mono text-[8px] text-theme-accent">REAL_TIME_STREAM</div>
+                             </div>
+                             <div className="h-48 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                   <BarChart data={[
+                                      { name: 'W1', efficiency: 85, latency: 20 },
+                                      { name: 'W2', efficiency: 72, latency: 45 },
+                                      { name: 'W3', efficiency: 91, latency: 15 },
+                                      { name: 'W4', efficiency: 64, latency: 60 },
+                                      { name: 'W5', efficiency: 88, latency: 30 },
+                                      { name: 'W6', efficiency: 95, latency: 10 },
+                                   ]}>
+                                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff05" />
+                                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#71717A', fontSize: 8}} />
+                                      <YAxis hide />
+                                      <Tooltip cursor={{fill: 'transparent'}} contentStyle={{backgroundColor: '#0C0C0E', border: '1px solid #ffffff10'}} />
+                                      <Legend iconType="circle" wrapperStyle={{fontSize: '8px', textTransform: 'uppercase', fontFamily: 'monospace', paddingTop: '20px'}} />
+                                      <Bar name="Processing_Efficiency" dataKey="efficiency" fill="#FF3D3D" radius={[4, 4, 0, 0]} />
+                                      <Bar name="Network_Latency" dataKey="latency" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                                   </BarChart>
+                                </ResponsiveContainer>
+                             </div>
+                         </div>
+                      </div>
                   </div>
                 )}
 
@@ -1378,29 +1934,8 @@ MANDATORY RULES:
            </AnimatePresence>
          </div>
 
-         {/* Bottom Control / Status Bar */}
-         <div className="flex items-center justify-between p-4 bg-theme-surface border border-theme-border rounded-xl">
-            <div className="flex items-center gap-6">
-               <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-theme-success animate-pulse" />
-                  <span className="mono text-[9px] uppercase font-bold tracking-[0.2em] text-theme-success">Secure Network Uplink Verified</span>
-               </div>
-               <div className="h-4 w-[1px] bg-theme-border" />
-               <div className="flex items-center gap-2 text-theme-text-dim">
-                  <Clock className="w-3 h-3" />
-                  <span className="mono text-[9px] uppercase">Latency: 42ms // Sync: 100%</span>
-               </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-               <div className="flex -space-x-2">
-                  {["AI", "LLM", "AGI", "OP"].map((lbl, i) => <div key={i} className="w-6 h-6 rounded-full border border-theme-surface bg-theme-border flex items-center justify-center mono text-[8px] font-black text-theme-accent">{lbl}</div>)}
-               </div>
-               <span className="mono text-[9px] text-theme-text-dim uppercase">Autonomous Agents Monitoring Feed</span>
-            </div>
-         </div>
-
-      </main>
+       </main>
+      </div>
 
       {/* Visual Overlays */}
       <AnimatePresence>
@@ -1449,6 +1984,30 @@ MANDATORY RULES:
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Global Data Stream Marquee */}
+      <footer className="h-8 bg-black border-t border-theme-border flex items-center overflow-hidden mono text-[9px] relative z-50 shrink-0">
+         <div className="bg-theme-accent px-4 h-full flex items-center text-white font-black uppercase tracking-tighter whitespace-nowrap border-r border-theme-border shadow-[5px_0_15px_rgba(255,61,61,0.3)]">
+            Live_Intel_Stream
+         </div>
+         <div className="flex-1 flex items-center whitespace-nowrap overflow-hidden">
+            <motion.div 
+               animate={{ x: [0, -1500] }}
+               transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+               className="flex gap-12 text-theme-text-dim/60 font-bold"
+            >
+               {[...Array(8)].map((_, i) => (
+                  <span key={i} className="flex gap-12 items-center">
+                     <span>| UPLINK_STABLE_PORT_8080 | SIGNAL_STRENGTH: 98.4% | LATENCY: 12.8ms | SECTOR_LOCK: {result?.location || "STANDBY"} | AI_KERNAL_STATUS: NOMINAL |</span>
+                     <span className="text-theme-accent brightness-125">SIGNAL_LOCK_ACQUIRED [{(result?.confidence || 0) * 100}%]</span>
+                     <span>| SCANNING_FOR_LIFE_SIGNATURES... | NGO_HIVE: {result?.volunteer_plan?.[0]?.organization || "READY"} | TIMESTAMP: {new Date().toISOString()} |</span>
+                  </span>
+               ))}
+            </motion.div>
+         </div>
+         <div className="bg-white/5 px-4 h-full flex items-center text-theme-text-dim border-l border-theme-border font-black text-[8px] uppercase tracking-tighter">
+            Aidflow_v2.0_Secure_Relay
+         </div>
+      </footer>
     </div>
   );
 }
